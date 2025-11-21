@@ -364,7 +364,7 @@ export function ExcelImport() {
   };
 
   const processAndSaveScrapData = async (rows: Record<string, any>[], userId: string) => {
-    if (!mapping.ressource || !mapping.datum || !mapping.ausschussmenge || !mapping.auftragsnummer) return;
+    if (!mapping.ressource || !mapping.datum || !mapping.ausschussmenge) return;
 
     try {
       const scrapMap = new Map<string, { machine: string; bab: string; amount: number; date: Date }>();
@@ -373,7 +373,7 @@ export function ExcelImport() {
         const dateValue = row[mapping.datum];
         const scrapValue = row[mapping.ausschussmenge];
         const machineValue = row[mapping.ressource];
-        const babValue = row[mapping.auftragsnummer];
+        const babValue = row['bab.afo'] || row[mapping.betriebsauftrag] || row[mapping.auftragsnummer];
 
         const date = parseDate(dateValue);
         if (!date) continue;
