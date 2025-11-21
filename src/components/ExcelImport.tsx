@@ -367,7 +367,7 @@ export function ExcelImport() {
     if (!mapping.ressource || !mapping.datum || !mapping.ausschussmenge || !mapping.auftragsnummer) return;
 
     try {
-      const scrapDataToInsert = [];
+      const scrapMap = new Map<string, { machine: string; bab: string; amount: number; date: Date }>();
 
       for (const row of rows) {
         const dateValue = row[mapping.datum];
@@ -387,13 +387,29 @@ export function ExcelImport() {
         const babNumber = babValue?.toString().trim() || 'Unbekannt';
 
         const dateKey = date.toISOString().split('T')[0];
+        const key = `${babNumber}_${machineName}_${dateKey}`;
 
+        if (!scrapMap.has(key)) {
+          scrapMap.set(key, {
+            machine: machineName,
+            bab: babNumber,
+            amount: 0,
+            date: date
+          });
+        }
+
+        const entry = scrapMap.get(key)!;
+        entry.amount += scrapAmount;
+      }
+
+      const scrapDataToInsert = [];
+      for (const [, entry] of scrapMap) {
         scrapDataToInsert.push({
           user_id: userId,
-          machine_name: machineName,
-          bab_number: babNumber,
-          scrap_amount: scrapAmount,
-          scrap_date: dateKey,
+          machine_name: entry.machine,
+          bab_number: entry.bab,
+          scrap_amount: entry.amount,
+          scrap_date: entry.date.toISOString().split('T')[0],
         });
       }
 
