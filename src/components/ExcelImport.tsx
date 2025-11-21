@@ -290,8 +290,10 @@ export function ExcelImport() {
       const machineHoursMap = new Map<string, Map<string, number>>();
 
       for (const [, entry] of betriebsauftragMap) {
-        const totalHours = entry.ruestzeit + entry.serienzeit;
-        if (totalHours <= 0) continue;
+        const totalMinutes = entry.ruestzeit + entry.serienzeit;
+        if (totalMinutes <= 0) continue;
+
+        const totalHours = totalMinutes / 60;
 
         const dateKey = entry.date.toISOString().split('T')[0];
 
@@ -482,13 +484,14 @@ export function ExcelImport() {
 
                 <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                   <h4 className="text-sm font-semibold text-slate-800 mb-1">Stunden (TEG)</h4>
-                  <p className="text-xs text-slate-600">TEG wird berechnet als: Rüstzeit + Serienzeit</p>
+                  <p className="text-xs text-slate-600">TEG wird berechnet als: (Rüstzeit + Serienzeit) / 60</p>
+                  <p className="text-xs text-slate-500 mt-1">Die Werte in den Spalten müssen in Minuten angegeben sein</p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">
-                      Rüstzeit <span className="text-red-500">*</span>
+                      Rüstzeit (in Minuten) <span className="text-red-500">*</span>
                     </label>
                     <select
                       value={mapping.ruestzeit}
@@ -506,7 +509,7 @@ export function ExcelImport() {
 
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">
-                      Serienzeit / Zeit pro Stück <span className="text-red-500">*</span>
+                      Serienzeit / Zeit pro Stück (in Minuten) <span className="text-red-500">*</span>
                     </label>
                     <select
                       value={mapping.serienzeit}
@@ -686,13 +689,13 @@ export function ExcelImport() {
                               {mapping.afo_nummer || 'AFO'}
                             </th>
                             <th className="px-4 py-3 text-left text-xs font-medium text-slate-700 uppercase tracking-wider">
-                              {mapping.ruestzeit || 'Rüstzeit'}
+                              Rüstzeit (min)
                             </th>
                             <th className="px-4 py-3 text-left text-xs font-medium text-slate-700 uppercase tracking-wider">
-                              {mapping.serienzeit || 'Serienzeit'}
+                              Serienzeit (min)
                             </th>
                             <th className="px-4 py-3 text-left text-xs font-medium text-slate-700 uppercase tracking-wider">
-                              TEG (Gesamt)
+                              TEG (Std)
                             </th>
                             <th className="px-4 py-3 text-left text-xs font-medium text-slate-700 uppercase tracking-wider">
                               {mapping.ressource || 'Maschine'}
@@ -725,7 +728,8 @@ export function ExcelImport() {
 
                             const ruestzeit = mapping.ruestzeit ? parseFloat(row[mapping.ruestzeit]) || 0 : 0;
                             const serienzeit = mapping.serienzeit ? parseFloat(row[mapping.serienzeit]) || 0 : 0;
-                            const totalTEG = ruestzeit + serienzeit;
+                            const totalMinutes = ruestzeit + serienzeit;
+                            const totalTEG = totalMinutes / 60;
 
                             return (
                               <tr key={idx} className="hover:bg-slate-50">
