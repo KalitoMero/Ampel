@@ -14,6 +14,8 @@ export function ExcelImport() {
     serienzeit: '',
     ausschussmenge: '',
     datum: '',
+    betriebsauftrag: '',
+    afo_nummer: '',
     auftragsnummer: '',
     ressource: '',
     menge_gut: '',
@@ -94,7 +96,7 @@ export function ExcelImport() {
   const handleSaveMapping = async () => {
     setError('');
 
-    if (!mapping.ruestzeit || !mapping.serienzeit || !mapping.ausschussmenge || !mapping.datum || !mapping.auftragsnummer || !mapping.ressource) {
+    if (!mapping.ruestzeit || !mapping.serienzeit || !mapping.ausschussmenge || !mapping.datum || !mapping.betriebsauftrag || !mapping.auftragsnummer || !mapping.ressource) {
       setError('Bitte füllen Sie alle Pflichtfelder aus');
       return;
     }
@@ -108,6 +110,8 @@ export function ExcelImport() {
         serienzeit: mapping.serienzeit,
         ausschussmenge: mapping.ausschussmenge,
         datum: mapping.datum,
+        betriebsauftrag: mapping.betriebsauftrag,
+        afo_nummer: mapping.afo_nummer || null,
         auftragsnummer: mapping.auftragsnummer,
         ressource: mapping.ressource,
         menge_gut: mapping.menge_gut || null,
@@ -232,7 +236,7 @@ export function ExcelImport() {
   };
 
   const processAndSaveMachineHours = async (rows: Record<string, any>[], userId: string) => {
-    if (!mapping.ressource || !mapping.datum || !mapping.ruestzeit || !mapping.serienzeit) return;
+    if (!mapping.ressource || !mapping.datum || !mapping.ruestzeit || !mapping.serienzeit || !mapping.betriebsauftrag) return;
 
     try {
       const { data: targets } = await supabase
@@ -246,33 +250,56 @@ export function ExcelImport() {
         });
       }
 
-      const machineHoursMap = new Map<string, Map<string, number>>();
+      const betriebsauftragMap = new Map<string, { ruestzeit: number; serienzeit: number; machine: string; date: Date }>();
 
       for (const row of rows) {
         const dateValue = row[mapping.datum];
         const ruestzeitValue = row[mapping.ruestzeit];
         const serienzeitValue = row[mapping.serienzeit];
         const machineValue = row[mapping.ressource];
+        const betriebsauftragValue = row[mapping.betriebsauftrag];
 
         const date = parseDate(dateValue);
         if (!date) continue;
 
-        const ruestzeit = parseFloat(ruestzeitValue) || 0;
-        const serienzeit = parseFloat(serienzeitValue) || 0;
-        const totalHours = ruestzeit + serienzeit;
-
-        if (totalHours <= 0) continue;
+        const betriebsauftrag = betriebsauftragValue?.toString().trim();
+        if (!betriebsauftrag) continue;
 
         const machineName = machineValue?.toString().trim() || 'Unbekannt';
         if (machineName === 'Unbekannt') continue;
 
-        const dateKey = date.toISOString().split('T')[0];
+        const ruestzeit = parseFloat(ruestzeitValue) || 0;
+        const serienzeit = parseFloat(serienzeitValue) || 0;
 
-        if (!machineHoursMap.has(machineName)) {
-          machineHoursMap.set(machineName, new Map());
+        const key = `${betriebsauftrag}_${machineName}_${date.toISOString().split('T')[0]}`;
+
+        if (!betriebsauftragMap.has(key)) {
+          betriebsauftragMap.set(key, {
+            ruestzeit: 0,
+            serienzeit: 0,
+            machine: machineName,
+            date: date
+          });
         }
 
-        const dateMap = machineHoursMap.get(machineName)!;
+        const entry = betriebsauftragMap.get(key)!;
+        entry.ruestzeit += ruestzeit;
+        entry.serienzeit += serienzeit;
+      }
+
+      const machineHoursMap = new Map<string, Map<string, number>>();
+
+      for (const [, entry] of betriebsauftragMap) {
+        const totalHours = entry.ruestzeit + entry.serienzeit;
+        if (totalHours <= 0) continue;
+
+        const dateKey = entry.date.toISOString().split('T')[0];
+
+        if (!machineHoursMap.has(entry.machine)) {
+          machineHoursMap.set(entry.machine, new Map());
+        }
+
+        const dateMap = machineHoursMap.get(entry.machine)!;
         dateMap.set(dateKey, (dateMap.get(dateKey) || 0) + totalHours);
       }
 
@@ -533,6 +560,42 @@ export function ExcelImport() {
 
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">
+                      Betriebsauftrag <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={mapping.betriebsauftrag}
+                      onChange={(e) => setMapping({ ...mapping, betriebsauftrag: e.target.value })}
+                      className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
+                    >
+                      <option value="">Bitte auswählen</option>
+                      {columns.map((col, idx) => (
+                        <option key={idx} value={col}>
+                          {col}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      AFO-Nummer (Arbeitsfolge)
+                    </label>
+                    <select
+                      value={mapping.afo_nummer}
+                      onChange={(e) => setMapping({ ...mapping, afo_nummer: e.target.value })}
+                      className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
+                    >
+                      <option value="">Bitte auswählen</option>
+                      {columns.map((col, idx) => (
+                        <option key={idx} value={col}>
+                          {col}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
                       Internes BA-Kürzel / Auftragsnummer <span className="text-red-500">*</span>
                     </label>
                     <select
@@ -617,6 +680,12 @@ export function ExcelImport() {
                               {mapping.datum || 'Datum'}
                             </th>
                             <th className="px-4 py-3 text-left text-xs font-medium text-slate-700 uppercase tracking-wider">
+                              {mapping.betriebsauftrag || 'Betriebsauftrag'}
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-700 uppercase tracking-wider">
+                              {mapping.afo_nummer || 'AFO'}
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-700 uppercase tracking-wider">
                               {mapping.ruestzeit || 'Rüstzeit'}
                             </th>
                             <th className="px-4 py-3 text-left text-xs font-medium text-slate-700 uppercase tracking-wider">
@@ -662,6 +731,12 @@ export function ExcelImport() {
                               <tr key={idx} className="hover:bg-slate-50">
                                 <td className="px-4 py-3 text-sm text-slate-900">
                                   {mapping.datum ? formatDate(row[mapping.datum]) : '-'}
+                                </td>
+                                <td className="px-4 py-3 text-sm text-slate-900">
+                                  {mapping.betriebsauftrag ? row[mapping.betriebsauftrag]?.toString() || '-' : '-'}
+                                </td>
+                                <td className="px-4 py-3 text-sm text-slate-900">
+                                  {mapping.afo_nummer ? row[mapping.afo_nummer]?.toString() || '-' : '-'}
                                 </td>
                                 <td className="px-4 py-3 text-sm text-slate-900">
                                   {mapping.ruestzeit ? row[mapping.ruestzeit]?.toString() || '-' : '-'}

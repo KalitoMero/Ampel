@@ -88,6 +88,8 @@ export function autoMapColumns(columns: string[]): {
   serienzeit: string;
   ausschussmenge: string;
   datum: string;
+  betriebsauftrag: string;
+  afo_nummer: string;
   auftragsnummer: string;
   ressource: string;
   menge_gut: string;
@@ -97,7 +99,9 @@ export function autoMapColumns(columns: string[]): {
     serienzeit: autoDetectColumn(columns, ['serienzeit', 'zeit pro stück', 'zeit pro stueck', 'production time', 'cycle time', 'stückzeit']),
     ausschussmenge: autoDetectColumn(columns, ['ausschuss', 'scrap', 'ausschussmenge']),
     datum: autoDetectColumn(columns, ['datum', 'date', 'jahr/monat', 'monat', 'periode']),
-    auftragsnummer: autoDetectColumn(columns, ['auftragsnummer', 'ba-kürzel', 'auftrag', 'order', 'ba']),
+    betriebsauftrag: autoDetectColumn(columns, ['betriebsauftrag', 'ba', 'work order', 'auftrag', 'order number']),
+    afo_nummer: autoDetectColumn(columns, ['afo', 'afo-nummer', 'arbeitsfolge', 'work sequence', 'operation']),
+    auftragsnummer: autoDetectColumn(columns, ['auftragsnummer', 'ba-kürzel', 'order', 'internal order']),
     ressource: autoDetectColumn(columns, ['ressource', 'maschine', 'machine', 'resource']),
     menge_gut: autoDetectColumn(columns, ['menge gut', 'gut', 'good quantity', 'quantity']),
   };

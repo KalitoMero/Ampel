@@ -13,6 +13,8 @@ export interface ColumnMapping {
   serienzeit: string | null;
   ausschussmenge: string | null;
   datum: string | null;
+  betriebsauftrag: string | null;
+  afo_nummer: string | null;
   auftragsnummer: string | null;
   ressource: string | null;
   menge_gut: string | null;
