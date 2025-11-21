@@ -1,5 +1,29 @@
 import { supabase, ColumnMapping, getUserId } from '../lib/supabase';
 
+function isExcelError(value: any): boolean {
+  if (!value) return true;
+  if (typeof value !== 'string') return false;
+
+  const excelErrors = ['#NV', '#N/A', '#NAME?', '#DIV/0!', '#REF!', '#VALUE!', '#NUM!', '#NULL!'];
+  const valueStr = value.toString().trim().toUpperCase();
+
+  return excelErrors.some(error => valueStr.includes(error));
+}
+
+function isValidMachineName(value: any): boolean {
+  if (!value) return false;
+
+  const valueStr = value.toString().trim();
+
+  if (isExcelError(valueStr)) return false;
+
+  if (/^\d+$/.test(valueStr)) return false;
+
+  if (!valueStr || valueStr === 'Unbekannt') return false;
+
+  return true;
+}
+
 function parseDate(dateValue: any): Date | null {
   if (!dateValue) return null;
 
@@ -48,7 +72,7 @@ export async function backfillMachineHoursFromExcelData(): Promise<{ success: bo
 
     const mapping: ColumnMapping = mappings[0];
 
-    if (!mapping.ressource || !mapping.datum || !mapping.stunden_teg) {
+    if (!mapping.ressource || !mapping.datum || !mapping.ruestzeit || !mapping.serienzeit || !mapping.betriebsauftrag) {
       return { success: false, error: 'Incomplete column mapping' };
     }
 
@@ -72,31 +96,61 @@ export async function backfillMachineHoursFromExcelData(): Promise<{ success: bo
       });
     }
 
-    const machineHoursMap = new Map<string, Map<string, number>>();
+    const betriebsauftragMap = new Map<string, { ruestzeit: number; serienzeit: number; machine: string; date: Date }>();
 
     for (const row of excelRows) {
       const rowData = row.row_data as Record<string, any>;
       const dateValue = rowData[mapping.datum];
-      const hoursValue = rowData[mapping.stunden_teg];
+      const ruestzeitValue = rowData[mapping.ruestzeit];
+      const serienzeitValue = rowData[mapping.serienzeit];
       const machineValue = rowData[mapping.ressource];
+      const betriebsauftragValue = rowData[mapping.betriebsauftrag];
 
       const date = parseDate(dateValue);
       if (!date) continue;
 
-      const hours = parseFloat(hoursValue);
-      if (isNaN(hours)) continue;
+      const betriebsauftrag = betriebsauftragValue?.toString().trim();
+      if (!betriebsauftrag) continue;
 
-      const machineName = machineValue?.toString().trim() || 'Unbekannt';
-      if (machineName === 'Unbekannt') continue;
+      if (!isValidMachineName(machineValue)) continue;
 
-      const dateKey = date.toISOString().split('T')[0];
+      const machineName = machineValue.toString().trim();
 
-      if (!machineHoursMap.has(machineName)) {
-        machineHoursMap.set(machineName, new Map());
+      const ruestzeit = parseFloat(ruestzeitValue) || 0;
+      const serienzeit = parseFloat(serienzeitValue) || 0;
+
+      const key = `${betriebsauftrag}_${machineName}_${date.toISOString().split('T')[0]}`;
+
+      if (!betriebsauftragMap.has(key)) {
+        betriebsauftragMap.set(key, {
+          ruestzeit: 0,
+          serienzeit: 0,
+          machine: machineName,
+          date: date
+        });
       }
 
-      const dateMap = machineHoursMap.get(machineName)!;
-      dateMap.set(dateKey, (dateMap.get(dateKey) || 0) + hours);
+      const entry = betriebsauftragMap.get(key)!;
+      entry.ruestzeit += ruestzeit;
+      entry.serienzeit += serienzeit;
+    }
+
+    const machineHoursMap = new Map<string, Map<string, number>>();
+
+    for (const [, entry] of betriebsauftragMap) {
+      const totalMinutes = entry.ruestzeit + entry.serienzeit;
+      if (totalMinutes <= 0) continue;
+
+      const totalHours = totalMinutes / 60;
+
+      const dateKey = entry.date.toISOString().split('T')[0];
+
+      if (!machineHoursMap.has(entry.machine)) {
+        machineHoursMap.set(entry.machine, new Map());
+      }
+
+      const dateMap = machineHoursMap.get(entry.machine)!;
+      dateMap.set(dateKey, (dateMap.get(dateKey) || 0) + totalHours);
     }
 
     const machineHoursToInsert = [];
