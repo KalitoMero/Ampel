@@ -10,7 +10,8 @@ export function ExcelImport() {
   const [columns, setColumns] = useState<string[]>([]);
   const [mappingName, setMappingName] = useState<string>('Standard Mapping');
   const [mapping, setMapping] = useState({
-    stunden_teg: '',
+    ruestzeit: '',
+    serienzeit: '',
     ausschussmenge: '',
     datum: '',
     auftragsnummer: '',
@@ -40,7 +41,8 @@ export function ExcelImport() {
         setMapping(prev => ({
           ...prev,
           datum: data.last_datum_column || prev.datum,
-          stunden_teg: data.last_stunden_teg_column || prev.stunden_teg,
+          ruestzeit: data.last_ruestzeit_column || prev.ruestzeit,
+          serienzeit: data.last_serienzeit_column || prev.serienzeit,
           ausschussmenge: data.last_schicht_column || prev.ausschussmenge,
         }));
       }
@@ -72,11 +74,12 @@ export function ExcelImport() {
         .limit(1)
         .maybeSingle();
 
-      if (savedPrefs && savedPrefs.last_datum_column && savedPrefs.last_stunden_teg_column) {
+      if (savedPrefs && savedPrefs.last_datum_column && savedPrefs.last_ruestzeit_column && savedPrefs.last_serienzeit_column) {
         setMapping(prev => ({
           ...prev,
           datum: headers.includes(savedPrefs.last_datum_column!) ? savedPrefs.last_datum_column! : prev.datum,
-          stunden_teg: headers.includes(savedPrefs.last_stunden_teg_column!) ? savedPrefs.last_stunden_teg_column! : prev.stunden_teg,
+          ruestzeit: headers.includes(savedPrefs.last_ruestzeit_column!) ? savedPrefs.last_ruestzeit_column! : prev.ruestzeit,
+          serienzeit: headers.includes(savedPrefs.last_serienzeit_column!) ? savedPrefs.last_serienzeit_column! : prev.serienzeit,
           ausschussmenge: savedPrefs.last_schicht_column && headers.includes(savedPrefs.last_schicht_column) ? savedPrefs.last_schicht_column : prev.ausschussmenge,
         }));
       } else {
@@ -91,7 +94,7 @@ export function ExcelImport() {
   const handleSaveMapping = async () => {
     setError('');
 
-    if (!mapping.stunden_teg || !mapping.ausschussmenge || !mapping.datum || !mapping.auftragsnummer || !mapping.ressource) {
+    if (!mapping.ruestzeit || !mapping.serienzeit || !mapping.ausschussmenge || !mapping.datum || !mapping.auftragsnummer || !mapping.ressource) {
       setError('Bitte füllen Sie alle Pflichtfelder aus');
       return;
     }
@@ -101,7 +104,8 @@ export function ExcelImport() {
       const mappingData: ColumnMapping = {
         user_id: userId,
         mapping_name: mappingName,
-        stunden_teg: mapping.stunden_teg,
+        ruestzeit: mapping.ruestzeit,
+        serienzeit: mapping.serienzeit,
         ausschussmenge: mapping.ausschussmenge,
         datum: mapping.datum,
         auftragsnummer: mapping.auftragsnummer,
@@ -130,7 +134,8 @@ export function ExcelImport() {
       const prefsData: Omit<UserPreferences, 'id' | 'created_at' | 'updated_at'> = {
         user_id: userId,
         last_datum_column: mapping.datum,
-        last_stunden_teg_column: mapping.stunden_teg,
+        last_ruestzeit_column: mapping.ruestzeit,
+        last_serienzeit_column: mapping.serienzeit,
         last_schicht_column: mapping.ausschussmenge,
       };
 
@@ -227,7 +232,7 @@ export function ExcelImport() {
   };
 
   const processAndSaveMachineHours = async (rows: Record<string, any>[], userId: string) => {
-    if (!mapping.ressource || !mapping.datum || !mapping.stunden_teg) return;
+    if (!mapping.ressource || !mapping.datum || !mapping.ruestzeit || !mapping.serienzeit) return;
 
     try {
       const { data: targets } = await supabase
@@ -245,14 +250,18 @@ export function ExcelImport() {
 
       for (const row of rows) {
         const dateValue = row[mapping.datum];
-        const hoursValue = row[mapping.stunden_teg];
+        const ruestzeitValue = row[mapping.ruestzeit];
+        const serienzeitValue = row[mapping.serienzeit];
         const machineValue = row[mapping.ressource];
 
         const date = parseDate(dateValue);
         if (!date) continue;
 
-        const hours = parseFloat(hoursValue);
-        if (isNaN(hours)) continue;
+        const ruestzeit = parseFloat(ruestzeitValue) || 0;
+        const serienzeit = parseFloat(serienzeitValue) || 0;
+        const totalHours = ruestzeit + serienzeit;
+
+        if (totalHours <= 0) continue;
 
         const machineName = machineValue?.toString().trim() || 'Unbekannt';
         if (machineName === 'Unbekannt') continue;
@@ -264,7 +273,7 @@ export function ExcelImport() {
         }
 
         const dateMap = machineHoursMap.get(machineName)!;
-        dateMap.set(dateKey, (dateMap.get(dateKey) || 0) + hours);
+        dateMap.set(dateKey, (dateMap.get(dateKey) || 0) + totalHours);
       }
 
       const machineHoursToInsert = [];
@@ -444,14 +453,37 @@ export function ExcelImport() {
                   />
                 </div>
 
+                <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <h4 className="text-sm font-semibold text-slate-800 mb-1">Stunden (TEG)</h4>
+                  <p className="text-xs text-slate-600">TEG wird berechnet als: Rüstzeit + Serienzeit</p>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">
-                      Stunden (TEG) <span className="text-red-500">*</span>
+                      Rüstzeit <span className="text-red-500">*</span>
                     </label>
                     <select
-                      value={mapping.stunden_teg}
-                      onChange={(e) => setMapping({ ...mapping, stunden_teg: e.target.value })}
+                      value={mapping.ruestzeit}
+                      onChange={(e) => setMapping({ ...mapping, ruestzeit: e.target.value })}
+                      className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
+                    >
+                      <option value="">Bitte auswählen</option>
+                      {columns.map((col, idx) => (
+                        <option key={idx} value={col}>
+                          {col}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      Serienzeit / Zeit pro Stück <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={mapping.serienzeit}
+                      onChange={(e) => setMapping({ ...mapping, serienzeit: e.target.value })}
                       className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
                     >
                       <option value="">Bitte auswählen</option>
@@ -585,7 +617,13 @@ export function ExcelImport() {
                               {mapping.datum || 'Datum'}
                             </th>
                             <th className="px-4 py-3 text-left text-xs font-medium text-slate-700 uppercase tracking-wider">
-                              {mapping.stunden_teg || 'Stunden'}
+                              {mapping.ruestzeit || 'Rüstzeit'}
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-700 uppercase tracking-wider">
+                              {mapping.serienzeit || 'Serienzeit'}
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-700 uppercase tracking-wider">
+                              TEG (Gesamt)
                             </th>
                             <th className="px-4 py-3 text-left text-xs font-medium text-slate-700 uppercase tracking-wider">
                               {mapping.ressource || 'Maschine'}
@@ -616,13 +654,23 @@ export function ExcelImport() {
                               return value.toString();
                             };
 
+                            const ruestzeit = mapping.ruestzeit ? parseFloat(row[mapping.ruestzeit]) || 0 : 0;
+                            const serienzeit = mapping.serienzeit ? parseFloat(row[mapping.serienzeit]) || 0 : 0;
+                            const totalTEG = ruestzeit + serienzeit;
+
                             return (
                               <tr key={idx} className="hover:bg-slate-50">
                                 <td className="px-4 py-3 text-sm text-slate-900">
                                   {mapping.datum ? formatDate(row[mapping.datum]) : '-'}
                                 </td>
                                 <td className="px-4 py-3 text-sm text-slate-900">
-                                  {mapping.stunden_teg ? row[mapping.stunden_teg]?.toString() || '-' : '-'}
+                                  {mapping.ruestzeit ? row[mapping.ruestzeit]?.toString() || '-' : '-'}
+                                </td>
+                                <td className="px-4 py-3 text-sm text-slate-900">
+                                  {mapping.serienzeit ? row[mapping.serienzeit]?.toString() || '-' : '-'}
+                                </td>
+                                <td className="px-4 py-3 text-sm text-slate-900 font-semibold">
+                                  {totalTEG > 0 ? totalTEG.toFixed(2) : '-'}
                                 </td>
                                 <td className="px-4 py-3 text-sm text-slate-900">
                                   {mapping.ressource ? row[mapping.ressource]?.toString() || '-' : '-'}

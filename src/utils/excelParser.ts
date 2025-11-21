@@ -84,7 +84,8 @@ export function autoDetectColumn(columns: string[], keywords: string[]): string 
 }
 
 export function autoMapColumns(columns: string[]): {
-  stunden_teg: string;
+  ruestzeit: string;
+  serienzeit: string;
   ausschussmenge: string;
   datum: string;
   auftragsnummer: string;
@@ -92,7 +93,8 @@ export function autoMapColumns(columns: string[]): {
   menge_gut: string;
 } {
   return {
-    stunden_teg: autoDetectColumn(columns, ['teg [h]', 'teg', 'stunden', 'hours', 'zeit']),
+    ruestzeit: autoDetectColumn(columns, ['rüstzeit', 'ruestzeit', 'setup time', 'rüsten', 'ruesten']),
+    serienzeit: autoDetectColumn(columns, ['serienzeit', 'zeit pro stück', 'zeit pro stueck', 'production time', 'cycle time', 'stückzeit']),
     ausschussmenge: autoDetectColumn(columns, ['ausschuss', 'scrap', 'ausschussmenge']),
     datum: autoDetectColumn(columns, ['datum', 'date', 'jahr/monat', 'monat', 'periode']),
     auftragsnummer: autoDetectColumn(columns, ['auftragsnummer', 'ba-kürzel', 'auftrag', 'order', 'ba']),

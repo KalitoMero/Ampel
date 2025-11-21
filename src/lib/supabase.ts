@@ -9,7 +9,8 @@ export interface ColumnMapping {
   id?: string;
   user_id?: string;
   mapping_name: string;
-  stunden_teg: string | null;
+  ruestzeit: string | null;
+  serienzeit: string | null;
   ausschussmenge: string | null;
   datum: string | null;
   auftragsnummer: string | null;
@@ -44,7 +45,8 @@ export interface UserPreferences {
   id?: string;
   user_id?: string;
   last_datum_column: string | null;
-  last_stunden_teg_column: string | null;
+  last_ruestzeit_column: string | null;
+  last_serienzeit_column: string | null;
   last_schicht_column: string | null;
   created_at?: string;
   updated_at?: string;
