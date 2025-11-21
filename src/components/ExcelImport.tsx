@@ -203,6 +203,30 @@ export function ExcelImport() {
     }
   };
 
+  const isExcelError = (value: any): boolean => {
+    if (!value) return true;
+    if (typeof value !== 'string') return false;
+
+    const excelErrors = ['#NV', '#N/A', '#NAME?', '#DIV/0!', '#REF!', '#VALUE!', '#NUM!', '#NULL!'];
+    const valueStr = value.toString().trim().toUpperCase();
+
+    return excelErrors.some(error => valueStr.includes(error));
+  };
+
+  const isValidMachineName = (value: any): boolean => {
+    if (!value) return false;
+
+    const valueStr = value.toString().trim();
+
+    if (isExcelError(valueStr)) return false;
+
+    if (/^\d+$/.test(valueStr)) return false;
+
+    if (!valueStr || valueStr === 'Unbekannt') return false;
+
+    return true;
+  };
+
   const parseDate = (dateValue: any): Date | null => {
     if (!dateValue) return null;
 
@@ -265,8 +289,9 @@ export function ExcelImport() {
         const betriebsauftrag = betriebsauftragValue?.toString().trim();
         if (!betriebsauftrag) continue;
 
-        const machineName = machineValue?.toString().trim() || 'Unbekannt';
-        if (machineName === 'Unbekannt') continue;
+        if (!isValidMachineName(machineValue)) continue;
+
+        const machineName = machineValue.toString().trim();
 
         const ruestzeit = parseFloat(ruestzeitValue) || 0;
         const serienzeit = parseFloat(serienzeitValue) || 0;
@@ -356,9 +381,9 @@ export function ExcelImport() {
         const scrapAmount = parseFloat(scrapValue);
         if (isNaN(scrapAmount) || scrapAmount <= 0) continue;
 
-        const machineName = machineValue?.toString().trim() || 'Unbekannt';
-        if (machineName === 'Unbekannt') continue;
+        if (!isValidMachineName(machineValue)) continue;
 
+        const machineName = machineValue.toString().trim();
         const babNumber = babValue?.toString().trim() || 'Unbekannt';
 
         const dateKey = date.toISOString().split('T')[0];
@@ -394,11 +419,8 @@ export function ExcelImport() {
 
       for (const row of rows) {
         const machineValue = row[mapping.ressource];
-        if (machineValue) {
-          const machineName = machineValue.toString().trim();
-          if (machineName && machineName !== 'Unbekannt') {
-            machineNames.add(machineName);
-          }
+        if (isValidMachineName(machineValue)) {
+          machineNames.add(machineValue.toString().trim());
         }
       }
 
