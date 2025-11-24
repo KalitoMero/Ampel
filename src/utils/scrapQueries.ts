@@ -86,18 +86,23 @@ export async function getScrapDataForWeek(): Promise<ScrapPeriodData> {
   const settings = await getScrapSettings();
 
   const today = new Date();
-  const startOfWeek = new Date(today);
-  startOfWeek.setDate(today.getDate() - today.getDay() + 1);
-  startOfWeek.setHours(0, 0, 0, 0);
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  yesterday.setHours(0, 0, 0, 0);
 
-  const endOfWeek = new Date(startOfWeek);
-  endOfWeek.setDate(startOfWeek.getDate() + 6);
+  const startDate = new Date(yesterday);
+  startDate.setDate(yesterday.getDate() - 6);
+  startDate.setHours(0, 0, 0, 0);
+
+  const endDate = new Date(yesterday);
+  endDate.setHours(23, 59, 59, 999);
 
   const { data, error } = await supabase
     .from('scrap_data')
     .select('scrap_amount')
     .eq('user_id', user.id)
-    .gte('scrap_date', startOfWeek.toISOString().split('T')[0]);
+    .gte('scrap_date', startDate.toISOString().split('T')[0])
+    .lte('scrap_date', endDate.toISOString().split('T')[0]);
 
   if (error) throw error;
 
@@ -107,7 +112,7 @@ export async function getScrapDataForWeek(): Promise<ScrapPeriodData> {
     return `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}.`;
   };
 
-  const dateRange = `${formatDate(startOfWeek)} - ${formatDate(endOfWeek)}${endOfWeek.getFullYear()}`;
+  const dateRange = `${formatDate(startDate)} - ${formatDate(endDate)}${endDate.getFullYear()}`;
 
   return {
     totalScrap,
@@ -158,15 +163,23 @@ export async function getScrapMachinesForWeek(): Promise<ScrapMachineData[]> {
   if (!user) throw new Error('Not authenticated');
 
   const today = new Date();
-  const startOfWeek = new Date(today);
-  startOfWeek.setDate(today.getDate() - today.getDay() + 1);
-  startOfWeek.setHours(0, 0, 0, 0);
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  yesterday.setHours(0, 0, 0, 0);
+
+  const startDate = new Date(yesterday);
+  startDate.setDate(yesterday.getDate() - 6);
+  startDate.setHours(0, 0, 0, 0);
+
+  const endDate = new Date(yesterday);
+  endDate.setHours(23, 59, 59, 999);
 
   const { data, error } = await supabase
     .from('scrap_data')
     .select('machine_name, scrap_amount')
     .eq('user_id', user.id)
-    .gte('scrap_date', startOfWeek.toISOString().split('T')[0]);
+    .gte('scrap_date', startDate.toISOString().split('T')[0])
+    .lte('scrap_date', endDate.toISOString().split('T')[0]);
 
   if (error) throw error;
 
@@ -186,16 +199,24 @@ export async function getScrapDetailsForMachine(machineName: string): Promise<Sc
   if (!user) throw new Error('Not authenticated');
 
   const today = new Date();
-  const startOfWeek = new Date(today);
-  startOfWeek.setDate(today.getDate() - today.getDay() + 1);
-  startOfWeek.setHours(0, 0, 0, 0);
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  yesterday.setHours(0, 0, 0, 0);
+
+  const startDate = new Date(yesterday);
+  startDate.setDate(yesterday.getDate() - 6);
+  startDate.setHours(0, 0, 0, 0);
+
+  const endDate = new Date(yesterday);
+  endDate.setHours(23, 59, 59, 999);
 
   const { data, error } = await supabase
     .from('scrap_data')
     .select('bab_number, scrap_amount, scrap_date')
     .eq('user_id', user.id)
     .eq('machine_name', machineName)
-    .gte('scrap_date', startOfWeek.toISOString().split('T')[0])
+    .gte('scrap_date', startDate.toISOString().split('T')[0])
+    .lte('scrap_date', endDate.toISOString().split('T')[0])
     .order('scrap_date', { ascending: false });
 
   if (error) throw error;

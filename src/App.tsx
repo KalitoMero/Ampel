@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Home, ArrowLeft, Lock, FileSpreadsheet, Settings as SettingsIcon, LogOut, Database } from 'lucide-react';
+import { Home, ArrowLeft, Lock, FileSpreadsheet, Settings as SettingsIcon, LogOut, Database, TrendingUp } from 'lucide-react';
 import { ExcelImport } from './components/ExcelImport';
+import { ImprovedExcelImport } from './components/ImprovedExcelImport';
+import { CEODashboard } from './components/CEODashboard';
 import { SettingsPage } from './components/SettingsPage';
 import { MachineTargets } from './components/MachineTargets';
 import { HoursTrafficLight } from './components/HoursTrafficLight';
@@ -14,7 +16,7 @@ import { getScrapDataForWeek } from './utils/scrapQueries';
 import { useAuth } from './contexts/AuthContext';
 import AuthForm from './components/AuthForm';
 
-type Page = 'home' | 'hours-overview' | 'department' | 'admin' | 'excel-import' | 'settings' | 'machine-targets' | 'machine-detail' | 'scrap-overview' | 'scrap-settings' | 'scrap-machines' | 'scrap-machine-detail';
+type Page = 'home' | 'hours-overview' | 'department' | 'admin' | 'excel-import' | 'improved-excel-import' | 'ceo-dashboard' | 'settings' | 'machine-targets' | 'machine-detail' | 'scrap-overview' | 'scrap-settings' | 'scrap-machines' | 'scrap-machine-detail';
 
 function TrafficLight({ color, onClick }: { color: 'red' | 'yellow' | 'green'; onClick: () => void }) {
   return (
@@ -206,6 +208,32 @@ function AdminPage({ onBack, onNavigate }: { onBack: () => void; onNavigate: (pa
 
           <div className="grid gap-6">
             <button
+              onClick={() => onNavigate('ceo-dashboard')}
+              className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl p-8 shadow-lg hover:shadow-xl transition-shadow flex items-center gap-6 group"
+            >
+              <div className="bg-white/20 rounded-full p-4 group-hover:bg-white/30 transition-colors">
+                <TrendingUp size={32} className="text-white" />
+              </div>
+              <div className="text-left">
+                <h2 className="text-2xl font-bold text-white mb-2">CEO Dashboard</h2>
+                <p className="text-blue-100">Überblick über alle KPIs und automatische Warnungen</p>
+              </div>
+            </button>
+
+            <button
+              onClick={() => onNavigate('improved-excel-import')}
+              className="bg-white rounded-xl p-8 shadow-lg hover:shadow-xl transition-shadow flex items-center gap-6 group"
+            >
+              <div className="bg-slate-100 rounded-full p-4 group-hover:bg-slate-200 transition-colors">
+                <FileSpreadsheet size={32} className="text-slate-700" />
+              </div>
+              <div className="text-left">
+                <h2 className="text-2xl font-bold text-slate-800 mb-2">Excel importieren (Neu)</h2>
+                <p className="text-slate-600">Verbesserter Import mit Validierung und Step-by-Step Anleitung</p>
+              </div>
+            </button>
+
+            <button
               onClick={() => onNavigate('excel-import')}
               className="bg-white rounded-xl p-8 shadow-lg hover:shadow-xl transition-shadow flex items-center gap-6 group"
             >
@@ -213,8 +241,8 @@ function AdminPage({ onBack, onNavigate }: { onBack: () => void; onNavigate: (pa
                 <FileSpreadsheet size={32} className="text-slate-700" />
               </div>
               <div className="text-left">
-                <h2 className="text-2xl font-bold text-slate-800 mb-2">Excel importieren & Spalten zuordnen</h2>
-                <p className="text-slate-600">Excel-Dateien hochladen und Spaltenmapping konfigurieren</p>
+                <h2 className="text-2xl font-bold text-slate-800 mb-2">Excel importieren (Alt)</h2>
+                <p className="text-slate-600">Klassischer Import - wird bald ersetzt</p>
               </div>
             </button>
 
@@ -268,6 +296,44 @@ function ExcelImportPage({ onBack }: { onBack: () => void }) {
       </header>
 
       <ExcelImport />
+    </div>
+  );
+}
+
+function ImprovedExcelImportPage({ onBack }: { onBack: () => void }) {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex flex-col">
+      <header className="p-6">
+        <button
+          onClick={onBack}
+          className="flex items-center gap-2 px-6 py-3 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition-colors shadow-lg"
+        >
+          <ArrowLeft size={20} />
+          Zurück zum Admin-Bereich
+        </button>
+      </header>
+
+      <ImprovedExcelImport />
+    </div>
+  );
+}
+
+function CEODashboardPage({ onBack }: { onBack: () => void }) {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex flex-col">
+      <header className="p-6">
+        <button
+          onClick={onBack}
+          className="flex items-center gap-2 px-6 py-3 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition-colors shadow-lg"
+        >
+          <ArrowLeft size={20} />
+          Zurück zum Admin-Bereich
+        </button>
+      </header>
+
+      <div className="p-8">
+        <CEODashboard />
+      </div>
     </div>
   );
 }
@@ -420,6 +486,8 @@ function App() {
       )}
       {currentPage === 'admin' && <AdminPage onBack={() => setCurrentPage('home')} onNavigate={setCurrentPage} />}
       {currentPage === 'excel-import' && <ExcelImportPage onBack={() => setCurrentPage('admin')} />}
+      {currentPage === 'improved-excel-import' && <ImprovedExcelImportPage onBack={() => setCurrentPage('admin')} />}
+      {currentPage === 'ceo-dashboard' && <CEODashboardPage onBack={() => setCurrentPage('admin')} />}
       {currentPage === 'settings' && <SettingsPageWrapper onBack={() => setCurrentPage('admin')} onNavigate={setCurrentPage} />}
       {currentPage === 'machine-targets' && <MachineTargets onBack={() => setCurrentPage('settings')} />}
       {currentPage === 'machine-detail' && <MachineHoursDetail periodType={selectedPeriod} onBack={() => setCurrentPage('department')} />}
